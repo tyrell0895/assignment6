@@ -1,65 +1,55 @@
 package com.meritamerica.assignment6.models;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-//Need a one to many relation with CD account 
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.validation.constraints.DecimalMax;
+import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.Min;
 @Entity
+@Table(name = "cd_offering")
 public class CDOffering {
 	
 	@Id
-	@GeneratedValue(strategy=GenerationType.AUTO)
-	@Column(name = "cd_offering")
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name = "offering_id")
 	private long id;
 	
-	private int term;
-    private double interestRate;
-    
-
-    
-
-    public CDOffering(){}
-
-    
-    public CDOffering(int term, double interestRate){
-        this.term = term;
-        this.interestRate = interestRate;
-    }
-
-    public int getTerm(){
-        return this.term;
-    }
-
-    public double getInterestRate(){
-        return this.interestRate;
-    }
-    
-    public void setTerm(int term) {
-    	this.term = term;
-    }
-    
-    public void setInterestRate(double interest) {
-    	this.interestRate = interest;
-    }
-
-    public String toString(){
-        return "Term: " + this.getTerm() + " Interest Rate: " + this.getInterestRate();
-    }
-    
-    static CDOffering readFromString(String accountData) {
-    	
-    	String array1[] = accountData.split(",");
-    	int fTerm = Integer.parseInt(array1[0]);
-    	double fInterest = Double.parseDouble(array1[1]);
-    	
-    	CDOffering offeringX = new CDOffering(fTerm, fInterest);
-    	return offeringX;
-    	
-    }
 	
-	public String writeToString() {
-    	return this.term + "," + this.interestRate;
-    }
+	@Min(1)
+	private int term;
+	
+	
+	@DecimalMin("0.0")
+	@DecimalMax("0.99999")
+	private double interestRate;
+	
+	@OneToMany(cascade = CascadeType.ALL)
+	List<CDAccount> cdAccounts;
+	
+	
+	public CDOffering(int term, double interestRate){
+		this.term = term;
+		this.interestRate = interestRate;
+	}
+	
+	public CDOffering() {
+		cdAccounts = new ArrayList<CDAccount>();
+	}
+	
+	public int getTerm() { return this.term; }
+	public void setTerm(int n) { this.term = n; }
+	
+	public double getInterestRate() { return this.interestRate; }
+	public void setInterestRate(double n) { this.interestRate = n; }
+
+
 }

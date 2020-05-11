@@ -1,209 +1,106 @@
 package com.meritamerica.assignment6.models;
 
-import java.util.*;
+import java.util.Date;
 
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.MappedSuperclass;
 import javax.persistence.Table;
-import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.DecimalMax;
+import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.Min;
+/*
+ * import javax.validation.constraints NotBlank; NotEmpty; Max
+ */
+
+import com.meritamerica.assignment6.exceptions.ExceedsAvailableBalanceException;
+import com.meritamerica.assignment6.exceptions.NegativeAmountException;
 
 
 @MappedSuperclass
-@Table(name = "Bank_Accounts", catalog = "assignment6")
-public abstract class BankAccount {
-	// Variables 
-	@NotBlank(message = "Balance is mandatory")
-	private double balance = 0;
+@Table(name = "bank_accounts", catalog = "assignment6")
+public class BankAccount {
 	
-	private double interestRate;
+	@Min(0)
+	protected double balance;
 	
+	@DecimalMin("0.0")
+	@DecimalMax("0.99999")
+	protected double interestRate;
 	@Id
-	@GeneratedValue(strategy=GenerationType.AUTO)
-	private long accountNumber;
-	private java.util.Date accountOpenedOn;
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	protected Long accountNumber;
 	
-	List<Transaction> list = new ArrayList<Transaction> ();
+	protected Long accountholder;
 	
-	public BankAccount(double balance, double interestRate) {
-		this.balance = balance;
-		this.interestRate = interestRate;
-		this.accountOpenedOn = new java.util.Date();
-		// no transaction methods at this time
-	}
-	
-	// used for creating Checking Accounts, Savings Accounts, CDAccounts
-	public BankAccount(double balance, double interestRate
-			, java.util.Date accountOpenedOn) {
-		this.balance = balance;
-		this.interestRate = interestRate;
-		this.accountOpenedOn = accountOpenedOn;
-		this.accountNumber = MeritBank.getNextAccountNumber();
-		DepositTransaction newTrans = new DepositTransaction(-1, this.accountNumber, this.balance, this.accountOpenedOn);
-		this.addTransaction(newTrans);
+	public Long getAccountholder() {
+		return accountholder;
 	}
 
-	public double getBalance() {
-		return balance;
+
+
+
+	public void setAccountholder(Long accountholder) {
+		this.accountholder = accountholder;
 	}
 
-	public void setBalance(double balance) {
-		this.balance = balance;
-	}
 
-	public double getInterestRate() {
-		return interestRate;
-	}
 
-	public void setInterestRate(double interestRate) {
-		this.interestRate = interestRate;
-	}
 
-	public long getAccountNumber() {
-		return accountNumber;
-	}
-
-	public void setAccountNumber(long accountNumber) {
+	public void setAccountNumber(Long accountNumber) {
 		this.accountNumber = accountNumber;
 	}
+	protected Date accountOpenedOn;
 	
-	public java.util.Date getAccountOpenedOn() {
-		return accountOpenedOn;
+	
+	public BankAccount() {
+		this.accountOpenedOn = new Date();
 	}
-
-	public void setAccountOpenedOn(java.util.Date accountOpenedOn) {
-		this.accountOpenedOn = accountOpenedOn;
+	
+	
+	
+	
+	public boolean withdraw(double amount) 
+				throws ExceedsAvailableBalanceException, NegativeAmountException {
+		
+		if(amount <= 0) { throw new NegativeAmountException(); }
+		if(amount > this.balance) { throw new ExceedsAvailableBalanceException(); }
+		
+		this.balance -= amount;
+		return true;
 	}
-
+	
+	
+	
+	
+	public boolean deposit(double amount) throws NegativeAmountException {
+		if(amount <= 0) { throw new NegativeAmountException(); }
+		
+		this.balance += amount;
+		return true;
+	}
+	
+	
+	
 	public double futureValue(int years) {
-        double fv = MeritBank.recursiveFutureValue(this.balance, 3, this.interestRate);
-        return fv;
-    }
-	
-	public boolean withdraw(double amount) {
-		try {
-			if((this.getBalance() - amount) < 0){      
-	            throw new ExceedsAvailableBalanceException("Not enough funds in the account.");
-	        }
-		} catch(ExceedsAvailableBalanceException e) {
-			System.out.println(e);
-			return false;
-		}
-		
-		try {
-			if (Math.abs(amount) > 1000) {
-        		throw new ExceedsFraudSuspicionLimitException("Transaction requires review, thanks for your patience.");
-        	}
-		} catch (ExceedsFraudSuspicionLimitException e) {
-			java.util.Date fDate = new java.util.Date();
-	        WithdrawTransaction newTrans = new WithdrawTransaction(-1, this.accountNumber, amount, fDate);
-	        MeritBank.processTransaction(newTrans);
-			System.out.println(e);
-			FraudQueue.addTransaction(newTrans);
-			return true;
-		}
-        
-        java.util.Date fDate = new java.util.Date();
-        WithdrawTransaction newTrans = new WithdrawTransaction(-1, this.accountNumber, amount, fDate);
-        MeritBank.processTransaction(newTrans);
-        return true;
-    }
-	
-	/* Deposit method 
-	 * 	amount required to be more than a negative
-	 * 	if amount > 1000, processes transaction AND adds transaction to FQ
-	 * 	if account is not under MeritBank stash, manually deposits money AND
-	 *  adds transaction
-	 */
-	public boolean deposit(double amount) {
-		
-		
-		try {
-			if(amount < 0){
-	        	throw new NegativeAmountException("Please Deposit a positive amount.");
-	        }
-		} catch (NegativeAmountException e) {
-			System.out.println(e);
-			return false;
-		}
-    
-        try {
-        	if(amount > 1000) {
-	        	throw new ExceedsFraudSuspicionLimitException("Transaction requires review, thanks for your patience.");
-        	}
-        } catch(ExceedsFraudSuspicionLimitException e) {
-        	java.util.Date fDate = new java.util.Date();
-	        DepositTransaction newTrans = new DepositTransaction(-1, this.accountNumber, amount, fDate);
-	        MeritBank.processTransaction(newTrans);
-        	System.out.println(e);
-        	FraudQueue.addTransaction(newTrans);
-        	return true;
-        }
-        	
-        java.util.Date fDate = new java.util.Date();
-        DepositTransaction newTrans = new DepositTransaction(-1, this.accountNumber, amount, fDate);
-        BankAccount tester = MeritBank.getBankAccount(this.accountNumber);
-        if(tester == null) {
-        	this.balance += amount;
-        	this.addTransaction(newTrans);
-        	return true;
-        } else {
-        	MeritBank.processTransaction(newTrans);
-	        return true;
-        }
-    }
-	
-	/* Transfer method
-	 * 	amount required to be more than negative
-	 * 	transfer amount required to be less than balance
-	 * 	if amount > 1000, processes transaction AND adds transaction to FQ
-	 * 	transaction required to have target accountNum instead of -1
-	 */	
-	
-	public boolean transfer(double amount, long target) {
-		try {
-			if(amount < 0) {
-				throw new NegativeAmountException("Please Deposit a positive amount.");
-			}
-		} catch(NegativeAmountException e) {
-			System.out.println(e);
-			return false;
-		}
-		try {
-			if(amount > this.balance) {
-				throw new ExceedsAvailableBalanceException("Not enough funds in the account.");
-			}
-		} catch(ExceedsAvailableBalanceException e) {
-			System.out.println(e);
-			return false;
-		}
-		try {
-        	if(amount > 1000) {
-	        	throw new ExceedsFraudSuspicionLimitException("Transaction requires review, thanks for your patience.");
-        	}
-        } catch(ExceedsFraudSuspicionLimitException e) {
-        	java.util.Date fDate = new java.util.Date();
-			TransferTransaction newTrans = new TransferTransaction(target, this.accountNumber, amount, fDate);
-	        MeritBank.processTransaction(newTrans);
-        	System.out.println(e);
-        	FraudQueue.addTransaction(newTrans);
-        	return true;
-        }
-		
-		java.util.Date fDate = new java.util.Date();
-		TransferTransaction newTrans = new TransferTransaction(target, this.accountNumber, amount, fDate);
-        MeritBank.processTransaction(newTrans);
-        return true;
+		if(years == 0) { return this.balance; }
+		return futureValue(years - 1) * (1 + this.interestRate);
 	}
+
 	
-	// transaction methods
+	public double getBalance() { return balance; }
+	public double getInterestRate() { return interestRate; }
+	public long getAccountNumber() { return accountNumber; }
+	public Date getAccountOpenedOn() { return accountOpenedOn; }
+
+	public void setBalance(double balance) { this.balance = balance; }
+	public void setInterestRate(double interestRate) { this.interestRate = interestRate; }
+	public void setAccountNumber(long accountNumber) { this.accountNumber = accountNumber; }
+	public void setAccountOpenedOn(Date accountOpenedOn) { this.accountOpenedOn = accountOpenedOn; }
+
 	
-	public void addTransaction(Transaction transaction) {
-		this.list.add(transaction);
-	}
 	
-	public List<Transaction> getTransaction(){
-		return this.list;
-	}
+
 }
+

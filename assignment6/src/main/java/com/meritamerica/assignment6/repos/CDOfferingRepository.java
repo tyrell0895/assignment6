@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.meritamerica.assignment6.models.CDOffering;
 
-public interface CDOfferingRepository extends JpaRepository<CDOffering,Long>{
+public interface CDOfferingRepository extends JpaRepository<CDOffering, Long> {
 	
-	List<CDOffering> findByAccountHolder(Long id);
+	List<CDOffering> findById(long id);
 
 }

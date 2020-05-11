@@ -1,4 +1,7 @@
-package com.meritamerica.assignment6.controller;
+package com.meritamerica.assignment6.controller; 
+
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.validation.Valid;
 
@@ -8,175 +11,134 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.meritamerica.assignment6.models.AccountHolder;
-import com.meritamerica.assignment6.models.CDAccount;
-import com.meritamerica.assignment6.models.CDOffering;
-import com.meritamerica.assignment6.models.CheckingAccount;
-import com.meritamerica.assignment6.models.ExceedsCombinedBalanceLimitException;
-import com.meritamerica.assignment6.models.MeritBank;
-import com.meritamerica.assignment6.models.NegativeAmountException;
-import com.meritamerica.assignment6.models.NoSuchResourceFoundException;
-import com.meritamerica.assignment6.models.SavingsAccount;
-import com.meritamerica.assignment6.repos.AccountHolderRepository;
-import com.meritamerica.assignment6.repos.AccountHoldersContactDetailsRepository;
-import com.meritamerica.assignment6.repos.CDAccountRepository;
-import com.meritamerica.assignment6.repos.CDOfferingRepository;
-import com.meritamerica.assignment6.repos.CheckingAccountRepository;
-import com.meritamerica.assignment6.repos.SavingsAccountRepository;
+
+import com.meritamerica.assignment6.exceptions.ExceedsCombinedBalanceLimitException;
+import com.meritamerica.assignment6.exceptions.NotFoundException;
+import com.meritamerica.assignment6.models.*;
+import com.meritamerica.assignment6.repos.*;
 
 @RestController
 public class MeritBankController {
-	@Autowired
-	AccountHolderRepository accountHolderRepository;
-	@Autowired
-	AccountHoldersContactDetailsRepository accountHolderContactDetails;
-	@Autowired
-	CDAccountRepository cdAccountRepository;
-	@Autowired
-	CDOfferingRepository cdOfferingRepository;
-	@Autowired
-	CheckingAccountRepository checkingAccountRepository;
-	@Autowired
-	SavingsAccountRepository savingsAccountRepository;
+	List<String> strings = new ArrayList<String>(); 
 	
+	@Autowired
+	private AccountHolderContactDetailsRepository accountHolderContactRepo;
+	@Autowired
+	private AccountHolderRepository accountHolderRepo;
+	@Autowired
+	private CDAccountRepository cdAccountRepo;
+	@Autowired
+	private CDOfferingRepository cdOfferingRepo;
+	@Autowired
+	private CheckingAccountRepository checkingAccountRepo;
+	@Autowired
+	private SavingsAccountRepository savingsAccountRepo;
 	
-	
-	@RequestMapping(value = "/", method = RequestMethod.GET)
-	public String test() {
-		return "Hello world";
-	}
 	
 
+	
 	@GetMapping(value = "/AccountHolders")
-	public AccountHolder[] getAccountHolders(){
-		return MeritBank.getAccountHolders();
+
+	public List<AccountHolder> getAccountHolders(){
+
+		return accountHolderRepo.findAll();
+
 	}
 	
 	@PostMapping(value = "/AccountHolders")
 	@ResponseStatus(HttpStatus.CREATED)
-	public AccountHolder addAccountHolder(@RequestBody @Valid AccountHolder account) {
-		MeritBank.addAccountHolder(account);
-		return account;
+	public AccountHolder addAccountHolder(@RequestBody @Valid AccountHolder accountHolder) {
+		accountHolderRepo.save(accountHolder);
+		return accountHolder; 
 	}
+	
+	@PostMapping(value = "/ContactDetails")
+	@ResponseStatus(HttpStatus.CREATED)
+	public void addContactDetails(@RequestBody @Valid AccountHolderContactDetails contactDetails) {
+		accountHolderContactRepo.save(contactDetails);
+	}
+	
+	@GetMapping(value = "/ContactDetails")
+	public List<AccountHolderContactDetails> getContactDetails(){
+		return accountHolderContactRepo.findAll();
+	}
+	
+	//Check URL Mapping
 	
 	@GetMapping(value = "/AccountHolders/{id}")
-	public AccountHolder getAccountHolderById(@PathVariable long id) throws NoSuchResourceFoundException {
-		if(id > MeritBank.getAccountHolders().length - 1) {
-			throw new NoSuchResourceFoundException("Invalid id");
+	public AccountHolder getACById(@PathVariable (name = "id" )long id)  throws NotFoundException {
+			 
+		return accountHolderRepo.findById(id); 
 		}
-		return MeritBank.getAccountHolder(id);
-	}
 	
-	// Checking Account Methods
+	@PostMapping(value ="/AccountHolders/{id}/CheckingAccounts")
+	@ResponseStatus(HttpStatus.CREATED)
+	public CheckingAccount addCheckingAccount(@RequestBody @Valid CheckingAccount checkingAccount, @PathVariable
+			(name = "id") long id) throws ExceedsCombinedBalanceLimitException, NotFoundException{
+		AccountHolder acctH = accountHolderRepo.findById(id); 
+		acctH.addCheckingAccount(checkingAccount);
+		checkingAccountRepo.save(checkingAccount); 
+		return checkingAccount; 
+	}
 	
 	@GetMapping(value = "/AccountHolders/{id}/CheckingAccounts")
-	public CheckingAccount[] getCheckingAccounts(@PathVariable long id) throws NoSuchResourceFoundException {
-		if(id > MeritBank.getAccountHolders().length - 1) {
-			throw new NoSuchResourceFoundException("Invalid id");
-		}
-		AccountHolder aHolder = MeritBank.getAccountHolder(id);
-		return aHolder.getCheckingAccounts();
+	@ResponseStatus(HttpStatus.OK)
+	public List<CheckingAccount> getCheckingAccount(@PathVariable (name = "id") long id) throws NotFoundException {
+		return checkingAccountRepo.findByAccountholder(id);
+		 
 	}
-	
-	@PostMapping(value = "/AccountHolders/{id}/CheckingAccounts")
+	@PostMapping(value ="/AccountHolders/{id}/SavingsAccounts")
 	@ResponseStatus(HttpStatus.CREATED)
-	public CheckingAccount addCheckingAccount(@PathVariable long id, @RequestBody CheckingAccount account) throws NoSuchResourceFoundException, ExceedsCombinedBalanceLimitException, NegativeAmountException {
-		if(id > MeritBank.getAccountHolders().length - 1) {
-			throw new NoSuchResourceFoundException("Invalid id");
-		}
-		AccountHolder aHolder = MeritBank.getAccountHolder(id);
-		double combinedBalance = aHolder.getCombinedBalance();
-		if((combinedBalance + account.getBalance()) > 250000) {
-			throw new ExceedsCombinedBalanceLimitException("Exceeds account limit");
-		} else if (account.getBalance() < 0){
-			throw new NegativeAmountException("Balance below 0");
-		} else {
-			account.setAccountNumber(MeritBank.getNextAccountNumber());
-			aHolder.addCheckingAccount(account);
-		}
-		return account;
+	public SavingsAccount addSavingsAccount(@RequestBody @Valid SavingsAccount savingsAccount, @PathVariable
+			(name = "id") long id) throws ExceedsCombinedBalanceLimitException, NotFoundException{
+		AccountHolder acctH = accountHolderRepo.findById(id);
+		acctH.addSavingsAccount(savingsAccount); 
+		savingsAccountRepo.save(savingsAccount);
+		return savingsAccount; 
 	}
-	
-	// Saving Account Methods
 	
 	@GetMapping(value = "/AccountHolders/{id}/SavingsAccounts")
-	public SavingsAccount[] getSavingsAccounts(@PathVariable long id) throws NoSuchResourceFoundException {
-		if(id > MeritBank.getAccountHolders().length - 1) {
-			throw new NoSuchResourceFoundException("Invalid id");
-		}
-		AccountHolder aHolder = MeritBank.getAccountHolder(id);
-		return aHolder.getSavingsAccounts();
+	@ResponseStatus(HttpStatus.OK)
+	public List<SavingsAccount> getSavingsAccount(@PathVariable (name = "id") long id) throws NotFoundException {
+		return savingsAccountRepo.findByAccountholder(id);
+		
+		
 	}
 	
-	@PostMapping(value = "/AccountHolders/{id}/SavingsAccounts")
+	@PostMapping(value ="/AccountHolders/{id}/CDAccounts")
 	@ResponseStatus(HttpStatus.CREATED)
-	public SavingsAccount addSavingsAccount(@PathVariable long id, @RequestBody SavingsAccount account) throws NoSuchResourceFoundException, ExceedsCombinedBalanceLimitException, NegativeAmountException {
-		if(id > MeritBank.getAccountHolders().length - 1) {
-			throw new NoSuchResourceFoundException("Invalid id");
-		}
-		AccountHolder aHolder = MeritBank.getAccountHolder(id);
-		double combinedBalance = aHolder.getCombinedBalance();
-		if((combinedBalance + account.getBalance()) > 250000) {
-			throw new ExceedsCombinedBalanceLimitException("Exceeds account limit");
-		} else if (account.getBalance() < 0) {
-			throw new NegativeAmountException("Balance below 0");
-		} else {
-			account.setAccountNumber(MeritBank.getNextAccountNumber());
-			aHolder.addSavingsAccount(account);
-		}
-		return account;
+	public CDAccount addCDAccount(@RequestBody @Valid CDAccount cdAccount, @PathVariable
+			(name = "id") long id) throws ExceedsCombinedBalanceLimitException, NotFoundException{
+		AccountHolder acctHolder = accountHolderRepo.findById(id); 
+		acctHolder.addCDAccount(cdAccount);
+		cdAccountRepo.save(cdAccount);
+		
+		return cdAccount; 
 	}
-	
-	// CDAccount Methods
 	
 	@GetMapping(value = "/AccountHolders/{id}/CDAccounts")
-	public CDAccount[] getCDAccounts(@PathVariable long id) throws NoSuchResourceFoundException {
-		if(id > MeritBank.getAccountHolders().length - 1) {
-			throw new NoSuchResourceFoundException("Invalid id");
-		}
-		AccountHolder aHolder = MeritBank.getAccountHolder(id);
-		return aHolder.getCDAccounts();
+	@ResponseStatus(HttpStatus.OK)
+	public List<CDAccount> getCDAccount(@PathVariable (name = "id") long id) throws NotFoundException {
+		return cdAccountRepo.findByAccountholder(id);
+		
 	}
 	
-	@PostMapping(value = "/AccountHolders/{id}/CDAccounts")
-	public CDAccount addCDAccounts(@PathVariable long id, @RequestBody CDAccount account) throws NoSuchResourceFoundException, ExceedsCombinedBalanceLimitException, NegativeAmountException {
-		if(id > MeritBank.getAccountHolders().length - 1) {
-			throw new NoSuchResourceFoundException("Invalid id");
-		}
-		AccountHolder aHolder = MeritBank.getAccountHolder(id);
-		double combinedBalance = aHolder.getCombinedBalance();
-		if((combinedBalance + account.getBalance()) > 250000) {
-			throw new ExceedsCombinedBalanceLimitException("Exceeds account limit");
-		} else if (account.getBalance() < 0) {
-			throw new NegativeAmountException("Balance below 0");
-		} else {
-			account.setAccountNumber(MeritBank.getNextAccountNumber());
-			aHolder.addCDAccount(account);
-		}
-		return account;
+	@PostMapping(value ="/CDOffering")
+	@ResponseStatus(HttpStatus.CREATED)
+	public CDOffering addCDOffering(@RequestBody @Valid CDOffering cdOffering) {
+		cdOfferingRepo.save(cdOffering); 
+		return cdOffering; 
 	}
 	
-	// CDOffering Methods
-	
-	@GetMapping(value = "/CDOfferings")
-	public CDOffering[] getCDOfferings() {
-		return MeritBank.getCDOfferings();
+	@GetMapping(value = "/CDOffering")
+	@ResponseStatus(HttpStatus.OK)
+	public List<CDOffering> getCDOffering() throws NotFoundException {
+		return cdOfferingRepo.findAll(); 
 	}
 	
-	@PostMapping(value = "/CDOfferings")
-	public CDOffering addCDOffering(@RequestBody CDOffering account) {
-		CDOffering cdHolder[] = new CDOffering[MeritBank.getCDOfferings().length + 1];
-		CDOffering copyHolder[] = MeritBank.getCDOfferings();
-        for(int x = 0; x < MeritBank.getCDOfferings().length; x++) {
-        	cdHolder[x] = copyHolder[x];
-        }
-        cdHolder[MeritBank.getCDOfferings().length - 1] = account;
-        MeritBank.setCDOfferings(cdHolder);
-        return account;
-	}
+		
+
 }
